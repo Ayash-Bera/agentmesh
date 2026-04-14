@@ -9,8 +9,8 @@ import type {
   RunResponse,
 } from "../types/pipeline";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
-const STUDIO_KEY = import.meta.env.VITE_STUDIO_KEY ?? "";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const STUDIO_KEY = process.env.NEXT_PUBLIC_STUDIO_KEY ?? "";
 
 async function parseJson<T>(response: Response): Promise<T> {
   if (!response.ok) {

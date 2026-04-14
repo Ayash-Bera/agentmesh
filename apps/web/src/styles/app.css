@@ -1,5 +1,5 @@
 :root {
-  font-family: "Inter", "Segoe UI", sans-serif;
+  font-family: var(--font-inter, "Inter", "Segoe UI", sans-serif);
   color: #effff5;
   background: #030705;
   color-scheme: dark;
@@ -78,7 +78,7 @@ body {
     radial-gradient(circle at top right, rgba(17, 122, 67, 0.12), transparent 18%),
     linear-gradient(180deg, #07100c 0%, #030705 55%, #010201 100%);
   color: #effff5;
-  font-family: "Inter", "Segoe UI", sans-serif;
+  font-family: var(--font-inter, "Inter", "Segoe UI", sans-serif);
 }
 
 button,
@@ -527,11 +527,11 @@ a {
 }
 
 .studio-shell {
+  display: flex;
+  flex-direction: column;
   height: 100vh;
-  display: grid;
-  grid-template-rows: auto 1fr;
-  gap: 10px;
   padding: 12px;
+  gap: 10px;
 }
 
 .studio-topbar {
@@ -612,6 +612,7 @@ a {
 }
 
 .playground-stage {
+  flex: 1;
   min-height: 0;
 }
 
@@ -2141,5 +2142,721 @@ a {
 
   .terminal-detail-pill {
     min-width: 100%;
+  }
+}
+
+/* ─── Pipeline Stepper ─────────────────────────────────────────── */
+
+.pipeline-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 8px 24px;
+  background: linear-gradient(180deg, rgba(8, 14, 11, 0.98), rgba(6, 11, 8, 0.98));
+  border-bottom: 1px solid rgba(72, 136, 98, 0.18);
+  flex-shrink: 0;
+}
+
+.stepper-item {
+  display: flex;
+  align-items: center;
+}
+
+.stepper-step {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  cursor: default;
+}
+
+.stepper-step:hover .stepper-hint {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.stepper-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.stepper-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.stepper-hint {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: rgba(10, 20, 15, 0.97);
+  border: 1px solid rgba(72, 136, 98, 0.3);
+  border-radius: 8px;
+  padding: 7px 11px;
+  font-size: 11px;
+  color: #9effc3;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms ease, transform 160ms ease;
+  z-index: 200;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.stepper-done .stepper-number {
+  background: rgba(45, 219, 118, 0.18);
+  color: #2ddb76;
+}
+
+.stepper-done .stepper-label {
+  color: #2ddb76;
+}
+
+.stepper-active .stepper-number {
+  background: rgba(255, 255, 255, 0.12);
+  color: #effff5;
+}
+
+.stepper-active .stepper-label {
+  color: #effff5;
+}
+
+.stepper-future .stepper-number {
+  background: rgba(100, 140, 110, 0.1);
+  color: #4a7060;
+}
+
+.stepper-future .stepper-label {
+  color: #4a7060;
+}
+
+.stepper-connector {
+  width: 36px;
+  height: 1px;
+  background: rgba(72, 136, 98, 0.24);
+  margin: 0 2px;
+  flex-shrink: 0;
+}
+
+.stepper-connector-done {
+  background: rgba(45, 219, 118, 0.5);
+}
+
+/* ─── Deploy Gate Hint ─────────────────────────────────────────── */
+
+.deploy-gate-hint {
+  text-align: center;
+  padding: 5px 16px;
+  font-size: 10px;
+  font-family: "JetBrains Mono", monospace;
+  color: #4a7060;
+  letter-spacing: 0.04em;
+  background: rgba(6, 11, 8, 0.92);
+  border-bottom: 1px solid rgba(72, 136, 98, 0.12);
+}
+
+/* ─── Empty Canvas State ───────────────────────────────────────── */
+
+.canvas-empty-state {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.canvas-empty-state strong {
+  font-size: 14px;
+  color: #4a7060;
+  font-family: "Space Grotesk", sans-serif;
+}
+
+.canvas-empty-state p {
+  font-size: 12px;
+  color: #2e4d3c;
+  max-width: 280px;
+  text-align: center;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ─── Wire Tooltip ─────────────────────────────────────────────── */
+
+.wire-segmented-control {
+  display: flex;
+  gap: 4px;
+}
+
+.segment-wrap {
+  position: relative;
+}
+
+.segment-wrap:hover .wire-tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+}
+
+.wire-tooltip {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: rgba(10, 20, 15, 0.97);
+  border: 1px solid rgba(72, 136, 98, 0.3);
+  border-radius: 8px;
+  padding: 7px 11px;
+  font-size: 11px;
+  color: #9effc3;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms ease, transform 160ms ease;
+  z-index: 200;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* ─── Inspector Empty Card ─────────────────────────────────────── */
+
+.inspector-empty-card {
+  padding: 16px;
+  border: 1px solid rgba(72, 136, 98, 0.2);
+  border-radius: 12px;
+  background: rgba(8, 18, 12, 0.6);
+}
+
+.inspector-steps-list {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12px;
+  color: #7f9c8d;
+  line-height: 1.5;
+}
+
+.inspector-steps-list strong {
+  color: #9effc3;
+}
+
+/* ─── Landing How It Works ─────────────────────────────────────── */
+
+.landing-how-it-works {
+  padding: 20px 24px;
+  border: 1px solid rgba(72, 136, 98, 0.24);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(10, 18, 14, 0.96), rgba(6, 11, 9, 0.98));
+  box-shadow: inset 0 1px 0 rgba(155, 255, 201, 0.05), 0 18px 40px rgba(0, 0, 0, 0.25);
+}
+
+.landing-how-it-works > .eyebrow {
+  display: block;
+  margin-bottom: 16px;
+}
+
+.how-steps-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.how-step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.how-step-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(45, 219, 118, 0.12);
+  border: 1px solid rgba(45, 219, 118, 0.28);
+  color: #2ddb76;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: "Space Grotesk", sans-serif;
+}
+
+.how-step strong {
+  display: block;
+  font-size: 13px;
+  font-family: "Space Grotesk", sans-serif;
+  color: #ebfff3;
+  letter-spacing: -0.01em;
+}
+
+.how-step p {
+  margin: 0;
+  font-size: 11px;
+  color: #5a8470;
+  line-height: 1.5;
+  max-width: 160px;
+}
+
+.how-step-arrow {
+  width: 32px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(45, 219, 118, 0.3), rgba(45, 219, 118, 0.1));
+  flex-shrink: 0;
+  margin: 0 4px;
+}
+
+/* ─── Tour Overlay ─────────────────────────────────────────────── */
+
+@keyframes tourFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tour-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 7, 5, 0.6);
+  z-index: 900;
+  cursor: pointer;
+}
+
+.tour-card {
+  position: fixed;
+  z-index: 901;
+  width: 340px;
+  background: linear-gradient(180deg, rgba(11, 22, 16, 0.99), rgba(7, 13, 10, 0.99));
+  border: 1px solid rgba(72, 136, 98, 0.36);
+  border-radius: 18px;
+  padding: 20px 22px;
+  box-shadow:
+    inset 0 1px 0 rgba(155, 255, 201, 0.07),
+    0 28px 56px rgba(0, 0, 0, 0.5);
+  animation: tourFadeIn 240ms ease;
+}
+
+.tour-card-center {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.tour-card-top-left {
+  top: 80px;
+  left: 280px;
+}
+
+.tour-card-top-center {
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.tour-card-top-right {
+  top: 80px;
+  right: 24px;
+}
+
+.tour-card-bottom-center {
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.tour-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.tour-step-label {
+  font-size: 10px;
+  color: #4a7060;
+}
+
+.tour-skip-btn {
+  background: none;
+  border: none;
+  color: #4a7060;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 2px 4px;
+  transition: color 150ms ease;
+}
+
+.tour-skip-btn:hover {
+  color: #9effc3;
+}
+
+.tour-card-title {
+  margin: 0 0 10px;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: #ebfff3;
+  letter-spacing: -0.02em;
+}
+
+.tour-card-body {
+  margin: 0 0 18px;
+  font-size: 12px;
+  color: #7f9c8d;
+  line-height: 1.65;
+}
+
+.tour-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tour-dots {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.tour-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(72, 136, 98, 0.3);
+  transition: background 200ms ease;
+}
+
+.tour-dot-active {
+  background: #2ddb76;
+}
+
+.tour-nav {
+  display: flex;
+  gap: 6px;
+}
+
+.tour-nav-btn {
+  font-size: 12px;
+  padding: 7px 14px;
+  border-radius: 10px;
+}
+
+/* ─── Tour Highlight Glow ──────────────────────────────────────── */
+
+@keyframes tourGlow {
+  0%, 100% {
+    box-shadow:
+      inset 0 1px 0 rgba(155, 255, 201, 0.05),
+      0 0 0 3px rgba(45, 219, 118, 0.35),
+      0 0 20px rgba(45, 219, 118, 0.12);
+  }
+  50% {
+    box-shadow:
+      inset 0 1px 0 rgba(155, 255, 201, 0.08),
+      0 0 0 3px rgba(45, 219, 118, 0.55),
+      0 0 32px rgba(45, 219, 118, 0.2);
+  }
+}
+
+.tour-highlight-left,
+.tour-highlight-right,
+.tour-highlight-center,
+.tour-highlight-buttons {
+  animation: tourGlow 1.8s ease infinite;
+  border-radius: 14px;
+  position: relative;
+  z-index: 902;
+}
+
+/* ─── Tour Card Narrow Viewport Fix ───────────────────────────── */
+
+.tour-card-top-right {
+  max-width: calc(100vw - 32px);
+}
+
+@media (max-width: 400px) {
+  .tour-card-top-right {
+    right: 16px;
+    left: 16px;
+    width: auto;
+  }
+}
+
+/* ─── Stepper Responsive (small screens) ──────────────────────── */
+
+@media (max-width: 640px) {
+  .stepper-label {
+    display: none;
+  }
+
+  .stepper-step {
+    gap: 0;
+    padding: 4px 4px;
+  }
+
+  .stepper-connector {
+    width: 20px;
+  }
+}
+
+/* ─── Studio Home Button ───────────────────────────────────────── */
+
+.studio-home-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 14px;
+  transition: box-shadow 150ms ease;
+  flex-shrink: 0;
+}
+
+.studio-home-btn:hover {
+  box-shadow: 0 0 0 3px rgba(45, 219, 118, 0.35);
+}
+
+/* ─── Tutorial Layout ──────────────────────────────────────────── */
+
+.tutorial-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: 12px;
+  gap: 10px;
+}
+
+.tutorial-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border-radius: 18px;
+  flex-shrink: 0;
+}
+
+.tutorial-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tutorial-body {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 10px;
+  flex: 1;
+  min-height: 0;
+}
+
+.tutorial-canvas-pane {
+  position: relative;
+  border-radius: 22px;
+  overflow: hidden;
+  background: #08110d;
+  border: 1px solid rgba(72, 136, 98, 0.24);
+}
+
+.tutorial-canvas-wrap {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.tutorial-instruction-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+  border-radius: 22px;
+}
+
+.tutorial-step-header {
+  flex-shrink: 0;
+}
+
+.tutorial-step-title {
+  margin: 0;
+  font-family: var(--font-space-grotesk, "Space Grotesk", sans-serif);
+  font-size: 22px;
+  font-weight: 700;
+  color: #ebfff3;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+}
+
+.tutorial-step-body {
+  margin: 0;
+  font-size: 13px;
+  color: #7f9c8d;
+  line-height: 1.7;
+}
+
+.tutorial-action-hint {
+  padding: 12px 14px;
+  border-left: 3px solid #2ddb76;
+  background: rgba(45, 219, 118, 0.06);
+  border-radius: 0 10px 10px 0;
+}
+
+.tutorial-action-hint .eyebrow {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.tutorial-action-hint p {
+  margin: 0;
+  font-size: 12px;
+  color: #9effc3;
+  line-height: 1.6;
+}
+
+.tutorial-cta-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tutorial-cta-row .primary-button,
+.tutorial-cta-row .ghost-button {
+  text-align: center;
+  padding: 12px 18px;
+  border-radius: 14px;
+  display: block;
+  font-weight: 700;
+}
+
+.tutorial-nav-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid rgba(72, 136, 98, 0.14);
+}
+
+.tutorial-nav-btns {
+  display: flex;
+  gap: 6px;
+}
+
+/* Tutorial canvas callouts */
+
+.tutorial-btn-callout,
+.tutorial-wire-callout {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.tutorial-btn-mock {
+  padding: 10px 20px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(45, 221, 118, 0.98), rgba(14, 114, 61, 0.98));
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  animation: tourGlow 1.8s ease infinite;
+}
+
+.tutorial-btn-caption {
+  margin: 0;
+  font-size: 11px;
+  color: #4a7060;
+  font-family: var(--font-jetbrains-mono, "JetBrains Mono", monospace);
+}
+
+.tutorial-wire-mock {
+  display: flex;
+  gap: 6px;
+  padding: 8px 12px;
+  background: rgba(10, 18, 14, 0.96);
+  border: 1px solid rgba(72, 136, 98, 0.3);
+  border-radius: 14px;
+  animation: tourGlow 1.8s ease infinite;
+}
+
+.tutorial-wire-pill {
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.tutorial-wire-a2a {
+  border-color: #8b5cf6;
+  color: #c4b5fd;
+  background: rgba(139, 92, 246, 0.1);
+}
+
+.tutorial-wire-x402 {
+  border-color: #10b981;
+  color: #6ee7b7;
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.tutorial-wire-algo {
+  border-color: #2563eb;
+  color: #93c5fd;
+  background: rgba(37, 99, 235, 0.1);
+}
+
+/* Tutorial pulse on canvas nodes */
+
+.tutorial-pulse-node .node-shell,
+.tutorial-pulse-node > div {
+  animation: tourGlow 1.5s ease infinite;
+  border-radius: 14px;
+}
+
+.tutorial-pulse-edge path {
+  filter: drop-shadow(0 0 6px rgba(45, 219, 118, 0.6));
+  stroke-width: 4px;
+}
+
+@media (max-width: 900px) {
+  .tutorial-body {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr auto;
+  }
+
+  .tutorial-canvas-pane {
+    min-height: 240px;
+  }
+
+  .tutorial-instruction-pane {
+    max-height: 50vh;
   }
 }

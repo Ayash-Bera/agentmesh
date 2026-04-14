@@ -26,6 +26,8 @@ import {
 } from "./api/client";
 import { createWire, getDefaultNodeData, initialEdges, initialNodes } from "./canvas/initialGraph";
 import { NodePalette } from "./components/NodePalette";
+import { PipelineStepper } from "./components/PipelineStepper";
+import { TOUR_STEPS, TOUR_STORAGE_KEY, TourOverlay } from "./components/TourOverlay";
 import { WireEdge } from "./edges/WireEdge";
 import { AgentNode } from "./nodes/AgentNode";
 import { EndNode } from "./nodes/EndNode";
@@ -333,6 +335,7 @@ function BuilderApp() {
   const [error, setError] = useState<string>();
   const [deployedWorkflows, setDeployedWorkflows] = useState<PipelineSummary[]>([]);
   const [flowsPending, setFlowsPending] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
   const playbackIdRef = useRef(0);
 
   const selectedNode = useMemo(
@@ -870,6 +873,28 @@ function BuilderApp() {
   }, [deployment, setNodes]);
 
   useEffect(() => {
+    if (typeof window !== "undefined" && window.location.search.includes("demo=1")) {
+      handleLoadExample();
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fire the guided tour once when the user first enters Studio.
+  useEffect(() => {
+    if (mode !== "studio") {
+      return;
+    }
+    const seen = window.localStorage.getItem(TOUR_STORAGE_KEY);
+    if (!seen) {
+      setTourStep(1);
+    }
+  }, [mode]);
+
+  const dismissTour = () => {
+    window.localStorage.setItem(TOUR_STORAGE_KEY, "done");
+    setTourStep(0);
+  };
+
+  useEffect(() => {
     const draft: StoredWorkflowDraft = {
       schemaVersion: WORKFLOW_SCHEMA_VERSION,
       pipelineName,
@@ -992,6 +1017,11 @@ function BuilderApp() {
 
   const liveStatus = deployment ? "Live endpoint ready" : "Draft workflow";
 
+  const stepperHasNodes = nodes.length > 0;
+  const stepperIsDeployed = deployment !== null;
+  const stepperIsFunded = nodes.some((node) => node.type === "agent" && (node.data.balanceAlgo ?? 0) > 0.1);
+  const stepperHasRun = logs.length > 0;
+
   if (mode === "landing") {
     return (
       <div className="landing-shell">
@@ -1006,6 +1036,7 @@ function BuilderApp() {
               </div>
             </div>
             <div className="landing-actions">
+              <a className="ghost-button" href="/tutorial">Tutorial</a>
               <button className="ghost-button" onClick={handleLoadExample} type="button">
                 Load Demo
               </button>
@@ -1105,6 +1136,29 @@ function BuilderApp() {
               <strong>Deploy to a callable pipeline and test prompts immediately</strong>
             </div>
           </div>
+
+          <div className="landing-how-it-works">
+            <span className="eyebrow">How it works</span>
+            <div className="how-steps-row">
+              <div className="how-step">
+                <span className="how-step-number">1</span>
+                <strong>Build</strong>
+                <p>Design your canvas — drag agents, services, and wires into a graph.</p>
+              </div>
+              <div className="how-step-arrow" />
+              <div className="how-step">
+                <span className="how-step-number">2</span>
+                <strong>Deploy</strong>
+                <p>Publish the pipeline to mint real Algorand wallets for each agent.</p>
+              </div>
+              <div className="how-step-arrow" />
+              <div className="how-step">
+                <span className="how-step-number">3</span>
+                <strong>Call</strong>
+                <p>Hit your live HTTP endpoint or run a test prompt directly from the studio.</p>
+              </div>
+            </div>
+          </div>
         </section>
       </div>
     );
@@ -1115,7 +1169,14 @@ function BuilderApp() {
       <header className="studio-topbar">
         <div className="studio-topbar-left">
           <div className="studio-brand">
-            <span className="brand-mark small-mark">AM</span>
+            <button
+              aria-label="Back to home"
+              className="studio-home-btn"
+              onClick={() => setMode("landing")}
+              type="button"
+            >
+              <span className="brand-mark small-mark">AM</span>
+            </button>
             <div>
               <span className="eyebrow">Studio</span>
               <input
@@ -1127,22 +1188,34 @@ function BuilderApp() {
           </div>
         </div>
 
-        <div className="studio-topbar-center">
-          <div className="segmented-control">
-            {(["a2a", "x402", "algo_transfer"] as WireKind[]).map((wireType) => (
-              <button
-                key={wireType}
-                className={wireType === activeWireType ? "segment-button segment-active" : "segment-button"}
-                onClick={() => setActiveWireType(wireType)}
-                type="button"
-              >
-                {wireType === "a2a" ? "Purple Wire" : wireType === "x402" ? "Green Wire" : "Blue Wire"}
-              </button>
-            ))}
+        <div className={`studio-topbar-center${tourStep === 4 ? " tour-highlight-center" : ""}`}>
+          <div className="segmented-control wire-segmented-control">
+            {(["a2a", "x402", "algo_transfer"] as WireKind[]).map((wireType) => {
+              const wireLabel = wireType === "a2a" ? "Purple Wire" : wireType === "x402" ? "Green Wire" : "Blue Wire";
+              const wireTooltip =
+                wireType === "a2a"
+                  ? "A2A — route reasoning between two agents"
+                  : wireType === "x402"
+                    ? "x402 — connect an agent to a paid tool or service"
+                    : "ALGO — send a direct ALGO transfer between wallets";
+              return (
+                <div className="segment-wrap" key={wireType}>
+                  <button
+                    aria-label={wireTooltip}
+                    className={wireType === activeWireType ? "segment-button segment-active" : "segment-button"}
+                    onClick={() => setActiveWireType(wireType)}
+                    type="button"
+                  >
+                    {wireLabel}
+                  </button>
+                  <span className="wire-tooltip">{wireTooltip}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        <div className="studio-topbar-right">
+        <div className={`studio-topbar-right${tourStep === 6 ? " tour-highlight-buttons" : ""}`}>
           <div className="toolbar-panel-group">
             <button
               className={leftOpen && leftPanel === "palette" ? "compact-button toolbar-panel-button toolbar-panel-active" : "compact-button toolbar-panel-button"}
@@ -1184,6 +1257,17 @@ function BuilderApp() {
           </button>
         </div>
       </header>
+
+      {!deployment && !pending ? (
+        <div className="deploy-gate-hint">Deploy the workflow first to enable running</div>
+      ) : null}
+
+      <PipelineStepper
+        hasNodes={stepperHasNodes}
+        isDeployed={stepperIsDeployed}
+        isFunded={stepperIsFunded}
+        hasRun={stepperHasRun}
+      />
 
       {error ? <div className="error-banner floating-error">{error}</div> : null}
 
@@ -1243,6 +1327,12 @@ function BuilderApp() {
               />
               <Controls />
             </ReactFlow>
+            {nodes.length === 0 ? (
+              <div className="canvas-empty-state">
+                <strong>No nodes yet</strong>
+                <p>Drag a Trigger from the Blocks panel to start, or click Load Example for a complete demo.</p>
+              </div>
+            ) : null}
           </div>
 
           <button
@@ -1254,7 +1344,7 @@ function BuilderApp() {
           </button>
 
           <section
-            className={leftOpen ? "overlay-panel overlay-panel-left" : "overlay-panel overlay-panel-left overlay-hidden-left"}
+            className={`overlay-panel overlay-panel-left${leftOpen ? "" : " overlay-hidden-left"}${tourStep === 3 ? " tour-highlight-left" : ""}`}
           >
             <button
               aria-label="Close left panel"
@@ -1296,7 +1386,7 @@ function BuilderApp() {
           </section>
 
           <section
-            className={rightOpen ? "overlay-panel overlay-panel-right" : "overlay-panel overlay-panel-right overlay-hidden-right"}
+            className={`overlay-panel overlay-panel-right${rightOpen ? "" : " overlay-hidden-right"}${tourStep === 5 ? " tour-highlight-right" : ""}`}
           >
             <button
               aria-label="Close inspector"
@@ -1359,6 +1449,16 @@ function BuilderApp() {
           setFundIntent(null);
         }}
       />
+
+      {tourStep > 0 ? (
+        <TourOverlay
+          onNext={() => setTourStep((s) => Math.min(s + 1, TOUR_STEPS.length))}
+          onPrev={() => setTourStep((s) => Math.max(s - 1, 1))}
+          onSkip={dismissTour}
+          step={tourStep}
+          total={TOUR_STEPS.length}
+        />
+      ) : null}
     </div>
   );
 }

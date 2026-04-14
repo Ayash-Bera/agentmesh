@@ -243,7 +243,15 @@ export function InspectorPanel({
           ) : null}
         </div>
       ) : (
-        <p className="empty-state">Select a node to edit prompts, tools, pricing, and service settings.</p>
+        <div className="inspector-empty-card">
+          <span className="eyebrow">Getting started</span>
+          <ol className="inspector-steps-list">
+            <li>Click a node on the canvas to edit it</li>
+            <li>Click <strong>Deploy</strong> to publish and mint wallets</li>
+            <li>Fund agent wallets with testnet ALGO</li>
+            <li>Click <strong>Run</strong> to execute the pipeline</li>
+          </ol>
+        </div>
       )}
 
       <div className="deploy-card">
