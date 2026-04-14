@@ -43,14 +43,29 @@ class X402Service:
             )
         }
 
-    def requires_payment(self, payment_response: Optional[str], demo_paid: Optional[str]) -> bool:
-        if demo_paid and demo_paid.lower() == "true":
+    def requires_payment(self, payment_response: Optional[str], studio_key: Optional[str]) -> bool:
+        if self.is_studio_key_valid(studio_key):
             return False
 
-        if payment_response:
+        if payment_response and self._is_valid_payment_response(payment_response):
             return False
 
         return True
+
+    def is_studio_key_valid(self, studio_key: Optional[str]) -> bool:
+        configured = os.getenv("AGENTMESH_STUDIO_KEY", "").strip()
+        return bool(configured and studio_key == configured)
+
+    def _is_valid_payment_response(self, value: str) -> bool:
+        import base64
+        import json as _json
+        try:
+            padded = value + "=" * (-len(value) % 4)
+            decoded = base64.b64decode(padded).decode("utf-8")
+            payload = _json.loads(decoded)
+            return all(k in payload for k in ("transaction", "payer", "network"))
+        except Exception:
+            return False
 
     def payment_required_response(self, record: PipelineRecord) -> JSONResponse:
         payload = PaymentRequiredResponse(

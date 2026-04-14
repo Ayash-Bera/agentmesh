@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
@@ -53,7 +53,7 @@ class DeployPipelineRequest(BaseModel):
 
 
 class RuntimeLog(BaseModel):
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     level: LogLevel
     message: str
     nodeId: Optional[str] = None

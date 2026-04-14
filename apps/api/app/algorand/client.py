@@ -1,3 +1,4 @@
+import concurrent.futures
 import json
 import os
 from typing import Optional
@@ -6,6 +7,14 @@ from algosdk import transaction
 from algosdk.v2client import algod
 
 from app.storage.repository import WalletRecord
+
+_ALGO_TX_TIMEOUT = float(os.getenv("AGENTMESH_ALGO_TX_TIMEOUT_SECONDS", "30"))
+
+
+def _wait_for_confirmation_with_timeout(client, txid: str, rounds: int = 4) -> None:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        future = pool.submit(transaction.wait_for_confirmation, client, txid, rounds)
+        future.result(timeout=_ALGO_TX_TIMEOUT)
 
 
 class AlgorandService:
@@ -71,7 +80,7 @@ class AlgorandService:
         )
         signed = txn.sign(sender_wallet.private_key)
         txid = self._client.send_transaction(signed)
-        transaction.wait_for_confirmation(self._client, txid, 4)
+        _wait_for_confirmation_with_timeout(self._client, txid)
         return txid
 
     def ensure_asset_opt_in(self, wallet: WalletRecord, asset_id: Optional[int] = None) -> Optional[str]:
@@ -90,7 +99,7 @@ class AlgorandService:
         )
         signed = txn.sign(wallet.private_key)
         txid = self._client.send_transaction(signed)
-        transaction.wait_for_confirmation(self._client, txid, 4)
+        _wait_for_confirmation_with_timeout(self._client, txid)
         return txid
 
     def anchor_note_transaction(self, sender_wallet: WalletRecord, note: dict) -> str:
@@ -104,5 +113,5 @@ class AlgorandService:
         )
         signed = txn.sign(sender_wallet.private_key)
         txid = self._client.send_transaction(signed)
-        transaction.wait_for_confirmation(self._client, txid, 4)
+        _wait_for_confirmation_with_timeout(self._client, txid)
         return txid

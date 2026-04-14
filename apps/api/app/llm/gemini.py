@@ -28,11 +28,10 @@ class GeminiPlanner:
         if not self._client:
             raise RuntimeError("Gemini planner is not configured.")
 
+        # User-controlled content is wrapped in XML delimiters so the model
+        # treats it as data rather than additional instructions.
         prompt = """
 You are planning tool usage for an autonomous Algorand agent workflow.
-
-User task:
-{query}
 
 Agent instructions:
 {agent_prompt}
@@ -42,6 +41,10 @@ Available tools:
 
 Allowed tools:
 {allowed_tools}
+
+<user_request>
+{query}
+</user_request>
 
 Return strict JSON with this shape:
 {{
@@ -104,9 +107,6 @@ Rules:
         prompt = """
 You are the final responder agent in AgentMesh.
 
-Original task:
-{query}
-
 Analyzer instructions:
 {analyzer_prompt}
 
@@ -115,6 +115,10 @@ Responder instructions:
 
 Tool results:
 {tool_lines}
+
+<user_request>
+{query}
+</user_request>
 
 Return only the final user-facing answer. Keep it concise but useful.
 """.strip().format(

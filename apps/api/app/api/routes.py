@@ -3,7 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Header, HTTPException
 
 from app.api.deps import get_orchestrator, get_x402_service
-from app.models.a2a import MultiAgentBootResponse
+from app.models.a2a import MultiAgentBootResponse, SafePipelineRuntimeConfig
 from app.models.pipeline import (
     BalanceResponse,
     DeployPipelineRequest,
@@ -62,7 +62,8 @@ def pipeline_runtime_config(
     orchestrator: PipelineOrchestrator = Depends(get_orchestrator),
 ):
     try:
-        return orchestrator.runtime_config(pipeline_id)
+        config = orchestrator.runtime_config(pipeline_id)
+        return SafePipelineRuntimeConfig.from_runtime_config(config)
     except KeyError as error:
         raise HTTPException(status_code=404, detail=str(error))
 
@@ -129,7 +130,7 @@ def run_pipeline(
     pipeline_id: str,
     payload: RunPipelineRequest,
     payment_response: Optional[str] = Header(default=None, alias="Payment-Response"),
-    demo_paid: Optional[str] = Header(default=None, alias="X-AgentMesh-Demo-Paid"),
+    studio_key: Optional[str] = Header(default=None, alias="X-AgentMesh-Studio-Key"),
     orchestrator: PipelineOrchestrator = Depends(get_orchestrator),
     x402: X402Service = Depends(get_x402_service),
 ):
@@ -138,13 +139,14 @@ def run_pipeline(
     except KeyError as error:
         raise HTTPException(status_code=404, detail=str(error))
 
-    if x402.requires_payment(payment_response=payment_response, demo_paid=demo_paid):
+    if x402.requires_payment(payment_response=payment_response, studio_key=studio_key):
         return x402.payment_required_response(record)
 
-    settlement_mode = "demo" if demo_paid and demo_paid.lower() == "true" else "payment_response"
+    key_valid = x402.is_studio_key_valid(studio_key)
+    settlement_mode = "demo" if key_valid else "payment_response"
     return orchestrator.execute(
         pipeline_id=pipeline_id,
         query=payload.query,
         settlement_mode=settlement_mode,
-        definition_override=payload.definition_override(),
+        definition_override=payload.definition_override() if key_valid else None,
     )

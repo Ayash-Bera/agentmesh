@@ -10,6 +10,7 @@ import type {
 } from "../types/pipeline";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+const STUDIO_KEY = import.meta.env.VITE_STUDIO_KEY ?? "";
 
 async function parseJson<T>(response: Response): Promise<T> {
   if (!response.ok) {
@@ -59,12 +60,14 @@ export async function runPipeline(
   pipelineId: string,
   payload: Record<string, unknown>,
 ): Promise<RunResponse> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (STUDIO_KEY) {
+    headers["X-AgentMesh-Studio-Key"] = STUDIO_KEY;
+  }
+
   const response = await fetch(`${API_BASE_URL}/${pipelineId}/run`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-AgentMesh-Demo-Paid": "true",
-    },
+    headers,
     body: JSON.stringify(payload),
   });
 
@@ -83,11 +86,16 @@ export async function preflightPipelinePayment(
     body: JSON.stringify(payload),
   });
 
+  if (response.status !== 402) {
+    const text = await response.text();
+    throw new Error(text || `Preflight failed with status ${response.status}`);
+  }
+
   const rawBody = (await response.json()) as PaymentPreflightResponse["body"];
 
   return {
     status: response.status,
-    paymentRequired: response.status === 402,
+    paymentRequired: true,
     facilitator:
       response.headers.get("Payment-Facilitator") ??
       response.headers.get("PAYMENT-FACILITATOR") ??

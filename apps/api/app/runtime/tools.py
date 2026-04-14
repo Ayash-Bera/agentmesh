@@ -1,10 +1,13 @@
+import ipaddress
 import os
 import re
 import smtplib
+import socket
 from dataclasses import dataclass
 from email.message import EmailMessage
 from typing import Dict, List, Optional, Tuple
-from urllib.parse import urlencode
+from urllib.parse import quote as _url_quote
+from urllib.parse import urlencode, urlparse
 
 import httpx
 
@@ -414,6 +417,9 @@ class ToolRuntime:
         if kind == "gmail":
             return self.gmail_message(query, node.data.gmailTo)
 
+        if url:
+            self._validate_service_url(url)
+
         rendered_url, params = self._build_api_request(url, query, kind)
         payload = self._get_json(rendered_url, params=params)
         summary = self._summarize_payload(payload)
@@ -538,9 +544,45 @@ class ToolRuntime:
         result.payment_amount_algo = amount_algo
         return result
 
+    def _validate_service_url(self, url: str) -> None:
+        """Reject URLs that target private/loopback addresses (SSRF guard)."""
+        parsed = urlparse(url)
+        if parsed.scheme not in ("http", "https"):
+            raise ValueError("serviceUrl must use http or https, got: {scheme}".format(scheme=parsed.scheme))
+
+        hostname = parsed.hostname or ""
+        if hostname.lower() in ("localhost", ""):
+            raise ValueError("serviceUrl must not target localhost")
+
+        try:
+            resolved = socket.getaddrinfo(hostname, None)
+        except socket.gaierror:
+            raise ValueError("serviceUrl hostname could not be resolved: {hostname}".format(hostname=hostname))
+
+        _PRIVATE_NETWORKS = [
+            ipaddress.ip_network("10.0.0.0/8"),
+            ipaddress.ip_network("172.16.0.0/12"),
+            ipaddress.ip_network("192.168.0.0/16"),
+            ipaddress.ip_network("127.0.0.0/8"),
+            ipaddress.ip_network("169.254.0.0/16"),
+            ipaddress.ip_network("::1/128"),
+            ipaddress.ip_network("fc00::/7"),
+        ]
+        for _, _, _, _, sockaddr in resolved:
+            try:
+                addr = ipaddress.ip_address(sockaddr[0])
+                for net in _PRIVATE_NETWORKS:
+                    if addr in net:
+                        raise ValueError(
+                            "serviceUrl resolves to a private or loopback address: {addr}".format(addr=addr)
+                        )
+            except ValueError as exc:
+                if "private" in str(exc) or "loopback" in str(exc):
+                    raise
+
     def _build_api_request(self, url: str, query: str, kind: str) -> Tuple[str, Dict]:
         if "{{query}}" in url:
-            return url.replace("{{query}}", query), {}
+            return url.replace("{{query}}", _url_quote(query, safe="")), {}
 
         if "{{query_urlencoded}}" in url:
             return url.replace("{{query_urlencoded}}", urlencode({"q": query})[2:]), {}

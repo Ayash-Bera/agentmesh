@@ -6,6 +6,7 @@
     "apps/web"
   ],
   "scripts": {
+    "dev": "npm --workspace @agentmesh/web run dev",
     "dev:web": "npm --workspace @agentmesh/web run dev",
     "build:web": "npm --workspace @agentmesh/web run build",
     "lint:web": "npm --workspace @agentmesh/web run lint",

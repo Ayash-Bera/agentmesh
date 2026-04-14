@@ -43,17 +43,21 @@ class LocalPipelineRepository:
             return record
 
     def get_pipeline(self, pipeline_id: str) -> Optional[PipelineRecord]:
-        return self._pipelines.get(pipeline_id)
+        with self._lock:
+            return self._pipelines.get(pipeline_id)
 
     def save_run(self, pipeline_id: str, run: RunPipelineResponse) -> RunPipelineResponse:
         with self._lock:
-            pipeline = self._pipelines[pipeline_id]
+            pipeline = self._pipelines.get(pipeline_id)
+            if pipeline is None:
+                raise KeyError("Pipeline {pipeline_id} not found".format(pipeline_id=pipeline_id))
             pipeline.runs[run.runId] = run
             self._flush()
             return run
 
     def list_pipelines(self) -> Dict[str, PipelineRecord]:
-        return dict(self._pipelines)
+        with self._lock:
+            return dict(self._pipelines)
 
     def _load(self) -> None:
         if not self._storage_path.exists():
@@ -73,7 +77,9 @@ class LocalPipelineRepository:
                 for pipeline_id, record in self._pipelines.items()
             }
         }
-        self._storage_path.write_text(json.dumps(payload, indent=2, sort_keys=True))
+        tmp_path = self._storage_path.with_suffix(".tmp")
+        tmp_path.write_text(json.dumps(payload, indent=2, sort_keys=True))
+        tmp_path.replace(self._storage_path)
 
     def _record_to_dict(self, record: PipelineRecord) -> Dict:
         return {

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
@@ -47,8 +47,39 @@ class PipelineRuntimeConfig(BaseModel):
     wires: List[RuntimeWireConfig]
 
 
+class SafeAgentRuntimeConfig(BaseModel):
+    """AgentRuntimeConfig with wallet_private_key excluded — safe to send over the network."""
+
+    id: str
+    name: str
+    port: int
+    role: Optional[str] = None
+    system_prompt: str
+    wallet_address: str
+    is_entry: bool = False
+    price_algo: float = 0
+    connected_agents: List[str] = Field(default_factory=list)
+    tools: List[AgentToolConfig] = Field(default_factory=list)
+
+
+class SafePipelineRuntimeConfig(BaseModel):
+    """PipelineRuntimeConfig with wallet private keys stripped — safe to return from public endpoints."""
+
+    pipeline_id: str
+    agents: List[SafeAgentRuntimeConfig]
+    wires: List[RuntimeWireConfig]
+
+    @classmethod
+    def from_runtime_config(cls, config: PipelineRuntimeConfig) -> "SafePipelineRuntimeConfig":
+        safe_agents = [
+            SafeAgentRuntimeConfig(**{k: v for k, v in agent.model_dump().items() if k != "wallet_private_key"})
+            for agent in config.agents
+        ]
+        return cls(pipeline_id=config.pipeline_id, agents=safe_agents, wires=config.wires)
+
+
 class AgentLogEntry(BaseModel):
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     level: Literal["info", "success", "warning", "error"] = "info"
     message: str
     details: Dict[str, Any] = Field(default_factory=dict)
@@ -77,7 +108,7 @@ class A2AMessageMetadata(BaseModel):
     from_agent: str
     from_address: str
     pipeline_id: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class A2ATaskParams(BaseModel):

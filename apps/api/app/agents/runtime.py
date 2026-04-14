@@ -77,16 +77,19 @@ class AgentServiceRuntime:
         return list(self.logs)
 
     async def _reasoning_loop(self, message: str, from_agent: Optional[str] = None) -> str:
-        self.logs = []
+        # Each invocation accumulates into its own local buffer so that concurrent
+        # /run + /message calls on the same agent don't clobber each other's logs.
+        buf: List[AgentLogEntry] = []
         self.state = "running"
         self._log(
             "info",
             "Agent started reasoning.",
             {"from_agent": from_agent, "message": message},
+            _buf=buf,
         )
 
         balance = await asyncio.to_thread(self.algorand.get_balance_algo, self.agent_config.wallet_address)
-        self._log("info", "Loaded wallet balance for reasoning context.", {"balance_algo": balance})
+        self._log("info", "Loaded wallet balance for reasoning context.", {"balance_algo": balance}, _buf=buf)
 
         tool_results: List[ToolResult] = []
         agent_results: Dict[str, str] = {}
@@ -121,6 +124,7 @@ class AgentServiceRuntime:
                             "error",
                             "A2A request failed.",
                             {"to_agent": target_agent_id, "error": str(response)},
+                            _buf=buf,
                         )
                         continue
                     agent_results[target_agent_id] = response
@@ -128,9 +132,10 @@ class AgentServiceRuntime:
                         "success",
                         "A2A response received.",
                         {"to_agent": target_agent_id, "response": response},
+                        _buf=buf,
                     )
 
-        selected_tools = self._select_tools(message)
+        selected_tools = self._select_tools(message, _buf=buf)
         selected_tools = sorted(selected_tools, key=lambda tool: 1 if tool.service_kind == "gmail" else 0)
         payer_wallet = self.record.wallets.get(self.agent_config.id)
 
@@ -140,7 +145,7 @@ class AgentServiceRuntime:
                 continue
 
             tool_message = self._tool_message(message, tool_results, agent_results, tool.service_kind)
-            self._log("info", "Executing tool.", {"tool": tool.label, "service_kind": tool.service_kind})
+            self._log("info", "Executing tool.", {"tool": tool.label, "service_kind": tool.service_kind}, _buf=buf)
             try:
                 if (tool.price_algo or 0) > 0 and payer_wallet is not None:
                     result = await asyncio.to_thread(
@@ -165,12 +170,14 @@ class AgentServiceRuntime:
                         "summary": result.summary,
                         "tx_id": result.payment_tx_id,
                     },
+                    _buf=buf,
                 )
             except Exception as error:
                 self._log(
                     "error",
                     "Tool execution failed.",
                     {"tool": tool.label, "error": str(error)},
+                    _buf=buf,
                 )
 
         downstream_agent_ids = [
@@ -197,21 +204,25 @@ class AgentServiceRuntime:
                     "success",
                     "Downstream response agent completed.",
                     {"to_agent": target_agent_id, "response": response},
+                    _buf=buf,
                 )
             except Exception as error:
                 self._log(
                     "error",
                     "Downstream response agent failed.",
                     {"to_agent": target_agent_id, "error": str(error)},
+                    _buf=buf,
                 )
 
-        final = await self._synthesize(message, tool_results, agent_results, downstream_results)
+        final = await self._synthesize(message, tool_results, agent_results, downstream_results, _buf=buf)
         self.last_result = final
         self.state = "completed"
-        self._log("success", "Agent finished reasoning.", {"result": final})
+        self._log("success", "Agent finished reasoning.", {"result": final}, _buf=buf)
+        # Replace logs atomically with the completed invocation's buffer.
+        self.logs = buf
         return final
 
-    def _select_tools(self, message: str) -> List:
+    def _select_tools(self, message: str, *, _buf: Optional[List[AgentLogEntry]] = None) -> List:
         available_tools = [
             {
                 "id": tool.node_id,
@@ -236,7 +247,7 @@ class AgentServiceRuntime:
                 if selected:
                     return selected
             except Exception as error:
-                self._log("warning", "Gemini tool planning failed, falling back to heuristic router.", {"error": str(error)})
+                self._log("warning", "Gemini tool planning failed, falling back to heuristic router.", {"error": str(error)}, _buf=_buf)
 
         selected_ids = set(
             self.tool_runtime.choose_tools(message, available_tools, allowed_tools)
@@ -249,6 +260,8 @@ class AgentServiceRuntime:
         tool_results: List[ToolResult],
         agent_results: Dict[str, str],
         downstream_results: Dict[str, str],
+        *,
+        _buf: Optional[List[AgentLogEntry]] = None,
     ) -> str:
         if downstream_results:
             return next(iter(downstream_results.values()))
@@ -275,7 +288,7 @@ class AgentServiceRuntime:
                     tool_results=synthetic_tools,
                 )
             except Exception as error:
-                self._log("warning", "Gemini synthesis failed, falling back to string synthesis.", {"error": str(error)})
+                self._log("warning", "Gemini synthesis failed, falling back to string synthesis.", {"error": str(error)}, _buf=_buf)
 
         collected_context = self._extract_collected_context(message)
         if self._is_downstream_agent(self.agent_config.id) and collected_context:
@@ -486,11 +499,18 @@ class AgentServiceRuntime:
     def _pipeline_node(self, node_id: str) -> Optional[PipelineNode]:
         return next((node for node in self.record.definition.nodes if node.id == node_id), None)
 
-    def _log(self, level: str, message: str, details: Optional[Dict] = None) -> None:
-        self.logs.append(
-            AgentLogEntry(
-                level=level,  # type: ignore[arg-type]
-                message=message,
-                details=details or {},
-            )
+    def _log(
+        self,
+        level: str,
+        message: str,
+        details: Optional[Dict] = None,
+        *,
+        _buf: Optional[List[AgentLogEntry]] = None,
+    ) -> None:
+        entry = AgentLogEntry(
+            level=level,  # type: ignore[arg-type]
+            message=message,
+            details=details or {},
         )
+        target = _buf if _buf is not None else self.logs
+        target.append(entry)

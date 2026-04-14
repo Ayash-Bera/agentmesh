@@ -1,9 +1,15 @@
 import hashlib
 import os
-from typing import List
+import threading
+from typing import Dict, List
 
 from app.models.a2a import AgentRuntimeConfig, AgentToolConfig, PipelineRuntimeConfig, RuntimeWireConfig
+from app.orchestrator.utils import resolve_entry_agent
 from app.storage.repository import PipelineRecord
+
+# Global registry mapping port → pipeline_id to detect and resolve collisions.
+_allocated_ports: Dict[int, str] = {}
+_port_lock = threading.Lock()
 
 
 def build_runtime_config(record: PipelineRecord) -> PipelineRuntimeConfig:
@@ -107,20 +113,28 @@ def build_runtime_config(record: PipelineRecord) -> PipelineRuntimeConfig:
 
 
 def _entry_agent_id(record: PipelineRecord) -> str:
-    priced_agents = [
-        node.id
-        for node in record.definition.nodes
-        if node.type == "agent" and (node.data.priceAlgo or 0) > 0
-    ]
-    if priced_agents:
-        return priced_agents[0]
-
-    first_agent = next((node.id for node in record.definition.nodes if node.type == "agent"), "")
-    return first_agent
+    entry = resolve_entry_agent(record.definition.nodes)
+    return entry.id if entry is not None else ""
 
 
 def _port_for(pipeline_id: str, index: int) -> int:
     base_port = int(os.getenv("AGENTMESH_AGENT_PORT_BASE", "8800"))
     digest = hashlib.sha1(pipeline_id.encode("utf-8")).hexdigest()
     offset = int(digest[:4], 16) % 180
-    return base_port + (offset * 10) + index
+    candidate = base_port + (offset * 10) + index
+
+    with _port_lock:
+        # Walk forward until we find a port not claimed by a different pipeline.
+        while candidate <= 65535:
+            owner = _allocated_ports.get(candidate)
+            if owner is None or owner == pipeline_id:
+                _allocated_ports[candidate] = pipeline_id
+                break
+            candidate += 1
+
+    if candidate > 65535:
+        raise RuntimeError(
+            f"Could not allocate a port for pipeline {pipeline_id} agent {index}: all candidates exhausted"
+        )
+
+    return candidate

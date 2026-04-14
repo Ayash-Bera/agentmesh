@@ -56,39 +56,42 @@ class MultiAgentOrchestrator:
     def boot_pipeline_agents_for_record(self, record: PipelineRecord) -> MultiAgentBootResponse:
         pipeline_id = record.pipeline_id
         runtime_config = build_runtime_config(record)
+        new_ports: list[int] = []
 
         with self._lock:
             pipeline_handles = self._servers.setdefault(pipeline_id, {})
 
-        for agent_config in runtime_config.agents:
-            if agent_config.id in pipeline_handles:
-                handle = pipeline_handles[agent_config.id]
-                handle.runtime.agent_config = agent_config
-                handle.runtime.record = record
-                handle.runtime.pipeline_config = runtime_config
-                continue
+            for agent_config in runtime_config.agents:
+                if agent_config.id in pipeline_handles:
+                    handle = pipeline_handles[agent_config.id]
+                    handle.runtime.agent_config = agent_config
+                    handle.runtime.record = record
+                    handle.runtime.pipeline_config = runtime_config
+                    continue
 
-            runtime = AgentServiceRuntime(
-                agent_config=agent_config,
-                record=record,
-                pipeline_config=runtime_config,
-                algorand=self.algorand,
-                tool_runtime=self.tool_runtime,
-                gemini=self.gemini,
-                send_a2a_message=self.send_a2a_message,
-            )
-            app = create_agent_app(runtime)
-            server_config = uvicorn.Config(
-                app,
-                host="127.0.0.1",
-                port=agent_config.port,
-                log_level="warning",
-            )
-            server = uvicorn.Server(server_config)
-            thread = threading.Thread(target=server.run, daemon=True)
-            thread.start()
-            self._wait_for_port(agent_config.port)
-            pipeline_handles[agent_config.id] = AgentServerHandle(runtime=runtime, thread=thread)
+                runtime = AgentServiceRuntime(
+                    agent_config=agent_config,
+                    record=record,
+                    pipeline_config=runtime_config,
+                    algorand=self.algorand,
+                    tool_runtime=self.tool_runtime,
+                    gemini=self.gemini,
+                    send_a2a_message=self.send_a2a_message,
+                )
+                app = create_agent_app(runtime)
+                server_config = uvicorn.Config(
+                    app,
+                    host="127.0.0.1",
+                    port=agent_config.port,
+                    log_level="warning",
+                )
+                server = uvicorn.Server(server_config)
+                thread = threading.Thread(target=server.run, daemon=True)
+                thread.start()
+                new_ports.append(agent_config.port)
+                pipeline_handles[agent_config.id] = AgentServerHandle(runtime=runtime, thread=thread)
+
+        self._wait_for_ports(new_ports)
 
         return MultiAgentBootResponse(
             pipeline_id=pipeline_id,
@@ -143,9 +146,13 @@ class MultiAgentOrchestrator:
 
         try:
             async with httpx.AsyncClient(timeout=self.request_timeout) as client:
+                run_payload = AgentRunRequest(task=query, pipeline_config=runtime_config).model_dump(
+                    mode="json",
+                    exclude={"pipeline_config": {"agents": {"__all__": {"wallet_private_key"}}}},
+                )
                 response = await client.post(
                     f"http://127.0.0.1:{entry_agent.port}/run",
-                    json=AgentRunRequest(task=query, pipeline_config=runtime_config).model_dump(mode="json"),
+                    json=run_payload,
                 )
                 response.raise_for_status()
                 payload = response.json()
@@ -266,15 +273,27 @@ class MultiAgentOrchestrator:
     def agent_statuses_sync(self, pipeline_id: str) -> List[dict]:
         return asyncio.run(self.agent_statuses(pipeline_id))
 
-    def _wait_for_port(self, port: int, timeout: float = 5.0) -> None:
-        start = time.time()
-        while time.time() - start < timeout:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-                sock.settimeout(0.2)
-                if sock.connect_ex(("127.0.0.1", port)) == 0:
-                    return
-            time.sleep(0.05)
-        raise TimeoutError(f"Timed out waiting for agent server on port {port}")
+    def _wait_for_ports(self, ports: list[int], timeout: float = 5.0) -> None:
+        """Wait for all ports in parallel rather than sequentially."""
+        if not ports:
+            return
+
+        import concurrent.futures
+
+        def probe(port: int) -> int:
+            start = time.time()
+            while time.time() - start < timeout:
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                    sock.settimeout(0.2)
+                    if sock.connect_ex(("127.0.0.1", port)) == 0:
+                        return port
+                time.sleep(0.05)
+            raise TimeoutError(f"Timed out waiting for agent server on port {port}")
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=len(ports)) as pool:
+            futures = {pool.submit(probe, port): port for port in ports}
+            for future in concurrent.futures.as_completed(futures):
+                future.result()
 
     def _get_record(self, pipeline_id: str) -> PipelineRecord:
         record = self.repository.get_pipeline(pipeline_id)

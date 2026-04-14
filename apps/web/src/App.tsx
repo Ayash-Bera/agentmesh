@@ -49,8 +49,10 @@ import type {
 } from "./types/pipeline";
 
 const WORKFLOW_STORAGE_KEY = "agentmesh.workflow.v5";
+const WORKFLOW_SCHEMA_VERSION = 5;
 
 interface StoredWorkflowDraft {
+  schemaVersion?: number;
   pipelineName: string;
   activeWireType: WireKind;
   runtimeQuery?: string;
@@ -116,6 +118,14 @@ function loadStoredWorkflow(): StoredWorkflowDraft | null {
   try {
     const parsed = JSON.parse(raw) as StoredWorkflowDraft;
     if (!Array.isArray(parsed.nodes) || !Array.isArray(parsed.edges)) {
+      console.warn("[AgentMesh] Stored workflow draft has invalid shape and was discarded.");
+      return null;
+    }
+
+    if (parsed.schemaVersion !== undefined && parsed.schemaVersion !== WORKFLOW_SCHEMA_VERSION) {
+      console.warn(
+        `[AgentMesh] Stored workflow draft has schema version ${String(parsed.schemaVersion)}, expected ${String(WORKFLOW_SCHEMA_VERSION)}. Draft discarded.`,
+      );
       return null;
     }
 
@@ -140,6 +150,7 @@ function loadStoredWorkflow(): StoredWorkflowDraft | null {
 
     return parsed;
   } catch {
+    console.warn("[AgentMesh] Failed to parse stored workflow draft — discarding.");
     return null;
   }
 }
@@ -860,6 +871,7 @@ function BuilderApp() {
 
   useEffect(() => {
     const draft: StoredWorkflowDraft = {
+      schemaVersion: WORKFLOW_SCHEMA_VERSION,
       pipelineName,
       activeWireType,
       runtimeQuery,

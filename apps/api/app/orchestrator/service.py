@@ -19,6 +19,7 @@ from app.models.pipeline import (
     RuntimeLog,
     WalletBalance,
 )
+from app.orchestrator.utils import resolve_entry_agent
 from app.runtime.executor import RuntimeExecutor
 from app.storage.repository import LocalPipelineRepository, PipelineRecord
 from app.wallets.service import WalletService
@@ -260,19 +261,7 @@ class PipelineOrchestrator:
         return record
 
     def _entrypoint_agent(self, definition: DeployPipelineRequest):
-        priced_agents = [
-            node
-            for node in definition.nodes
-            if node.type == "agent" and node.data.priceAlgo and node.data.priceAlgo > 0
-        ]
-        if priced_agents:
-            return priced_agents[0]
-
-        for node in definition.nodes:
-            if node.type == "agent":
-                return node
-
-        return None
+        return resolve_entry_agent(definition.nodes)
 
     def _record_with_override(
         self,
