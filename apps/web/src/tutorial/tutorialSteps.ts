@@ -5,6 +5,7 @@ export interface TutorialStep {
   highlightNodeId?: string;
   highlightEdgeId?: string;
   highlightTarget?: "deploy-btn" | "run-btn" | "wire-selector" | "canvas" | "none";
+  inspectorFields?: string[];
 }
 
 // Minimal 3-node pipeline used in the tutorial canvas

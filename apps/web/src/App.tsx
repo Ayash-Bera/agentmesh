@@ -337,6 +337,7 @@ function BuilderApp() {
   const [flowsPending, setFlowsPending] = useState(false);
   const [tourStep, setTourStep] = useState(0);
   const playbackIdRef = useRef(0);
+  const routedOnceRef = useRef(false);
 
   const selectedNode = useMemo(
     () => nodes.find((node) => node.id === selectedNodeId) ?? null,
@@ -873,10 +874,15 @@ function BuilderApp() {
   }, [deployment, setNodes]);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && window.location.search.includes("demo=1")) {
+    if (routedOnceRef.current) return;
+    routedOnceRef.current = true;
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("demo")) {
       handleLoadExample();
+    } else if (params.has("studio")) {
+      setMode("studio");
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [handleLoadExample]);
 
   // Fire the guided tour once when the user first enters Studio.
   useEffect(() => {

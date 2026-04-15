@@ -2860,3 +2860,142 @@ a {
     max-height: 50vh;
   }
 }
+
+/* ─── Tutorial step content (animation owned by Framer Motion) ── */
+
+.tutorial-step-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+}
+
+/* ─── Progress dots (geometry spring-animated by Framer Motion) ─ */
+
+.tour-dot        { transition: background 220ms ease; }
+.tour-dot-active { width: 18px; border-radius: 3px; }
+.tour-dot-past   { background: rgba(45, 219, 118, 0.35); }
+
+/* ─── Wire pills (interactive in step 4) ─────────────────────── */
+
+.tutorial-wire-callout { pointer-events: auto; }
+
+.tutorial-wire-pill {
+  transition: background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+  cursor: pointer;
+}
+
+.tutorial-wire-pill:focus-visible {
+  outline: 2px solid #2ddb76;
+  outline-offset: 2px;
+}
+
+.tutorial-wire-a2a.tutorial-wire-pill-active {
+  box-shadow: 0 0 8px rgba(139, 92, 246, 0.5);
+  border-width: 2px;
+  background: rgba(139, 92, 246, 0.2);
+}
+
+.tutorial-wire-x402.tutorial-wire-pill-active {
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+  border-width: 2px;
+  background: rgba(16, 185, 129, 0.2);
+}
+
+.tutorial-wire-algo.tutorial-wire-pill-active {
+  box-shadow: 0 0 8px rgba(37, 99, 235, 0.5);
+  border-width: 2px;
+  background: rgba(37, 99, 235, 0.2);
+}
+
+/* ─── Tutorial Inspector ──────────────────────────────────────── */
+
+.tut-inspector {
+  padding: 14px;
+  border-left: 3px solid #2ddb76;
+  background: rgba(45, 219, 118, 0.06);
+  border-radius: 0 10px 10px 0;
+  margin: 0;
+}
+
+.tut-inspector-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  font-size: 12px;
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(72, 136, 98, 0.12);
+}
+
+.tut-inspector-key {
+  color: #4a7060;
+}
+
+.tut-inspector-val {
+  color: #9effc3;
+  font-family: var(--font-jetbrains-mono, "JetBrains Mono", monospace);
+  font-size: 11px;
+  text-align: right;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  justify-content: flex-end;
+  max-width: 60%;
+}
+
+.tut-inspector-pill {
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-size: 10px;
+  background: rgba(45, 219, 118, 0.1);
+  border: 1px solid rgba(45, 219, 118, 0.3);
+  color: #78f0a6;
+}
+
+.tut-inspector-prompt {
+  font-size: 11px;
+  color: #5a7a6a;
+  font-style: italic;
+  line-height: 1.5;
+  margin-top: 6px;
+  margin-bottom: 0;
+}
+
+.tut-click-hint {
+  font-size: 11px;
+  color: #4a7060;
+  text-align: center;
+  padding: 8px;
+  border: 1px dashed rgba(72, 136, 98, 0.3);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 160ms ease, color 160ms ease;
+}
+
+.tut-click-hint:hover {
+  border-color: rgba(45, 219, 118, 0.5);
+  color: #7fc99a;
+}
+
+/* ─── Tutorial Log Stream ─────────────────────────────────────── */
+
+.tut-log-stream {
+  max-height: 120px;
+  overflow: hidden;
+  margin-top: 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(72, 136, 98, 0.2);
+  background: rgba(6, 11, 9, 0.9);
+  padding: 8px 10px;
+  font-size: 11px;
+}
+
+/* ─── Mock button done state ──────────────────────────────────── */
+
+.tutorial-btn-mock-done {
+  background: rgba(45, 219, 118, 0.15) !important;
+  border: 2px solid rgba(45, 219, 118, 0.5) !important;
+  color: #2ddb76 !important;
+  animation: none !important;
+}

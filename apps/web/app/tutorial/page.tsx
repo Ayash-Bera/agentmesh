@@ -1,5 +1,5 @@
-import { TutorialPage } from "../../src/tutorial/TutorialPage";
+import { TutorialPageClient } from "../../src/tutorial/TutorialPageClient";
 
 export default function Tutorial() {
-  return <TutorialPage />;
+  return <TutorialPageClient />;
 }

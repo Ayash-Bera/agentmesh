@@ -12,5 +12,8 @@
     "lint:web": "npm --workspace @agentmesh/web run lint",
     "dev:api": "cd apps/api && .venv/bin/python -m uvicorn app.main:app --reload",
     "check": "npm run build:web"
+  },
+  "dependencies": {
+    "framer-motion": "^12.38.0"
   }
 }
